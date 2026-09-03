@@ -1,6 +1,7 @@
 package com.cloudera.sa.securewordcount;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +15,11 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.junit.jupiter.api.Test;
 
 class SecureWordCountDriverTest {
+  @Test
+  void ownerPrivateCiNegativeProof() {
+    assertTrue(false, "deliberate fail-closed routing proof");
+  }
+
   @Test
   void rejectsAnythingOtherThanOneInputAndOneOutput() throws Exception {
     SecureWordCountDriver driver = new SecureWordCountDriver();
