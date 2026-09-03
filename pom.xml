@@ -19,9 +19,11 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <junit.version>6.1.0</junit.version>
         <mockito.version>5.23.0</mockito.version>
+        <byte-buddy.version>1.17.7</byte-buddy.version>
         <jacoco.version>0.8.15</jacoco.version>
         <maven.compiler.version>3.15.0</maven.compiler.version>
         <maven.surefire.version>3.5.5</maven.surefire.version>
+        <opencsv.version>5.12.0</opencsv.version>
     </properties>
     <profiles>
         <profile>
@@ -31,6 +33,8 @@
             </activation>
             <properties>
                 <hadoop.version>3.5.0</hadoop.version>
+                <hbase.version>2.6.6</hbase.version>
+                <hive.version>4.1.0</hive.version>
                 <runtime.distribution>Apache Hadoop</runtime.distribution>
             </properties>
         </profile>
@@ -38,6 +42,8 @@
             <id>cdp-7.3.2-sp1</id>
             <properties>
                 <hadoop.version>3.4.2.7.3.2.10000-317</hadoop.version>
+                <hbase.version>2.6.3.7.3.2.10000-317</hbase.version>
+                <hive.version>3.1.3000.7.3.2.10000-317</hive.version>
                 <runtime.distribution>Cloudera Runtime 7.3.2 SP1</runtime.distribution>
             </properties>
             <repositories>

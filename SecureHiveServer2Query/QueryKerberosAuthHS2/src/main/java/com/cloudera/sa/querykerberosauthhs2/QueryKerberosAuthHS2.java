@@ -1,89 +1,97 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.cloudera.sa.querykerberosauthhs2;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Objects;
+import java.util.regex.Pattern;
 import org.apache.hadoop.security.UserGroupInformation;
 
-/**
- *
- * @author vsingh
- */
-public class QueryKerberosAuthHS2 {
+public final class QueryKerberosAuthHS2 {
+  private static final Pattern HOST = Pattern.compile("[A-Za-z0-9.-]+");
+  private static final Pattern DATABASE = Pattern.compile("[A-Za-z0-9_]+");
+  private static final Pattern PRINCIPAL = Pattern.compile("[A-Za-z0-9/._-]+@[A-Za-z0-9._-]+");
+  private static final Pattern REALM = Pattern.compile("[A-Za-z0-9._-]+");
+  private final JdbcConnector connector;
 
-  /* This method signature allow you to kerberos authentication enabled 
-  HiveServer2 instance 
-  */
-  
-  public QueryKerberosAuthHS2() throws IOException {
-    if (UserGroupInformation.isSecurityEnabled()) {
-      
-        UserGroupInformation.loginUserFromKeytab(
-            "vijay@US-WEST-2.COMPUTE.INTERNAL","/etc/vijay.keytab");
-      
-      
+  public QueryKerberosAuthHS2() {
+    this(QueryKerberosAuthHS2::openConnection);
+  }
+
+  QueryKerberosAuthHS2(JdbcConnector connector) {
+    this.connector = Objects.requireNonNull(connector, "connector");
+  }
+
+  public static void loginFromKeytab(String principal, Path keytab) throws IOException {
+    requireMatch(principal, PRINCIPAL, "Kerberos principal");
+    if (keytab == null || !keytab.isAbsolute() || Files.isSymbolicLink(keytab)
+        || !Files.isRegularFile(keytab)) {
+      throw new IllegalArgumentException("keytab must be an existing absolute regular file, not a symlink");
+    }
+    UserGroupInformation.loginUserFromKeytab(principal, keytab.toString());
+  }
+
+  public Connection connect(
+      String hostName, int port, String database, String realm, boolean ssl)
+      throws ClassNotFoundException, SQLException {
+    return connector.connect(buildJdbcUrl(hostName, port, database, realm, ssl));
+  }
+
+  static String buildJdbcUrl(
+      String hostName, int port, String database, String realm, boolean ssl) {
+    requireMatch(hostName, HOST, "host");
+    requireMatch(database, DATABASE, "database");
+    requireMatch(realm, REALM, "Kerberos realm");
+    if (port < 1 || port > 65535) {
+      throw new IllegalArgumentException("port must be between 1 and 65535");
+    }
+    return "jdbc:hive2://" + hostName + ":" + port + "/" + database
+        + ";principal=hive/_HOST@" + realm + ";ssl=" + ssl;
+  }
+
+  public boolean executeQueryStatement(Connection connection, String query)
+      throws SQLException {
+    requireQuery(connection, query);
+    try (Statement statement = connection.createStatement()) {
+      return statement.execute(query);
     }
   }
-  public Connection connect(String hostName, int port, String database, 
-    String domain) throws ClassNotFoundException, SQLException {
-    String hiveJDBCClassName = "org.apache.hive.jdbc.HiveDriver";
-    String jdbcUrl = "jdbc:hive2://" + hostName + ":" + port + "/" + database +
-        ";principal=hive/_HOST@"+domain;
-    
-    Class.forName(hiveJDBCClassName);
-    Connection connection;
-    connection = DriverManager.getConnection(jdbcUrl);
-    return connection;
-  }
-  //Additionally one can add ssl=true with truststore location and password 
-  // for kerberos + SSL/TSL connection;
-  public Connection connect(String hostName, int port, String database, 
-    String domain, boolean ssl) throws ClassNotFoundException, SQLException {
-    String hiveJDBCClassName = "org.apache.hive.jdbc.HiveDriver";
-    String jdbcUrl = "jdbc:hive2://" + hostName + ":" + port + "/" + database +
-        ";principal=hive/_HOST@"+domain +";ssl="+ssl;
-    if(ssl) {
-        jdbcUrl += ";sslTrustStore=/opt/cloudera/security/jks/truststore/jssecacerts;trustStorePassword=changeit";
+
+  public boolean executeQueryPreparedStatement(Connection connection, String query)
+      throws SQLException {
+    requireQuery(connection, query);
+    try (PreparedStatement statement = connection.prepareStatement(query)) {
+      return statement.execute();
     }
-    Class.forName(hiveJDBCClassName);
-    Connection connection;
-    connection = DriverManager.getConnection(jdbcUrl);
-    return connection;
-  }
-  
-  /**
-   * @param Query
-   * @param conn
-   * @return 
-   * @throws java.sql.SQLException
-   */
-  public boolean executeQueryStatement(Connection conn, String Query) 
-      throws SQLException {
-    return conn.createStatement().execute(Query);
-  }
-  
-  public boolean executeQueryPreparedStatement(Connection conn ,String Query) 
-      throws SQLException {
-    return conn.prepareStatement(Query).execute();
   }
 
-  public static void main( String [] args) throws SQLException, IOException,
-      ClassNotFoundException {
-    QueryKerberosAuthHS2 instance;
-    instance = new QueryKerberosAuthHS2();
-    Connection connection = instance.connect(
-        "ip-10-20-0-5.us-west-2.compute.internal", 10000,
-            "default", "US-WEST-2.COMPUTE.INTERNAL");
-    boolean b = instance.executeQueryStatement(connection,
-        "SELECT Count(1) FROM flightdata_p ");
+  private static Connection openConnection(String jdbcUrl)
+      throws ClassNotFoundException, SQLException {
+    Class.forName("org.apache.hive.jdbc.HiveDriver");
+    return DriverManager.getConnection(jdbcUrl);
   }
-  
-  
 
+  private static void requireQuery(Connection connection, String query) {
+    Objects.requireNonNull(connection, "connection");
+    if (query == null || query.isBlank()) {
+      throw new IllegalArgumentException("query must not be blank");
+    }
+  }
+
+  private static String requireMatch(String value, Pattern pattern, String label) {
+    if (value == null || !pattern.matcher(value).matches()) {
+      throw new IllegalArgumentException(label + " contains unsupported characters");
+    }
+    return value;
+  }
+
+  @FunctionalInterface
+  interface JdbcConnector {
+    Connection connect(String jdbcUrl) throws ClassNotFoundException, SQLException;
+  }
 }
