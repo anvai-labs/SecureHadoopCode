@@ -78,7 +78,7 @@ jobs:
           fi
 
   test:
-    name: SecureMapReduce (Java ${{ matrix.java }})
+    name: SecureMapReduce (${{ matrix.distribution }}, Java ${{ matrix.java }})
     needs: authorize-owner
     runs-on: [self-hosted, Linux, X64, public-overflow]
     timeout-minutes: 25

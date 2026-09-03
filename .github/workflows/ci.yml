@@ -46,7 +46,7 @@ jobs:
           fi
 
   test:
-    name: SecureMapReduce (Java ${{ matrix.java }})
+    name: SecureMapReduce (${{ matrix.distribution }}, Java ${{ matrix.java }})
     if: >-
       github.event_name != 'pull_request' ||
       vars.OWNER_PRIVATE_CI_ENABLED != 'true' ||
