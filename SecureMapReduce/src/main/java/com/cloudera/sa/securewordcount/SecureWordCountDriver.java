@@ -1,12 +1,6 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.cloudera.sa.securewordcount;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
@@ -20,34 +14,30 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
-/**
- *
- * @author vsingh
- */
-public class SecureWordCountDriver extends Configured implements Tool {
-
-  /**
-   * @param args the command line arguments
-   */
-  public static void main(String[] args) {
-    try {
-      ToolRunner.run(new Configuration(), new SecureWordCountDriver(), args);
-    } catch (Exception ex) {
-      Logger.getLogger(SecureWordCountDriver.class.getName()).log(Level.SEVERE, null, ex);
-    }
+public final class SecureWordCountDriver extends Configured implements Tool {
+  public static void main(String[] args) throws Exception {
+    System.exit(ToolRunner.run(new Configuration(), new SecureWordCountDriver(), args));
   }
 
   @Override
-  public int run(String[] args) throws Exception {
-    Configuration config = getConf();
-    args = new GenericOptionsParser(config, args).getRemainingArgs();
-
-    if (args.length < 2) {
-     
-      ToolRunner.printGenericCommandUsage(System.out);
+  public int run(String[] arguments) throws Exception {
+    Configuration configuration = getConf();
+    String[] paths = new GenericOptionsParser(configuration, arguments).getRemainingArgs();
+    if (paths.length != 2) {
+      ToolRunner.printGenericCommandUsage(System.err);
       return 2;
     }
-    Job job = Job.getInstance(config, this.getClass().getName() + "-wordcount");
+    return completionStatus(createJob(configuration, paths[0], paths[1]));
+  }
+
+  static int completionStatus(Job job) throws IOException, InterruptedException,
+      ClassNotFoundException {
+    return job.waitForCompletion(true) ? 0 : 1;
+  }
+
+  static Job createJob(Configuration configuration, String input, String output)
+      throws IOException {
+    Job job = Job.getInstance(configuration, SecureWordCountDriver.class.getSimpleName());
     job.setJarByClass(SecureWordCountDriver.class);
     job.setInputFormatClass(TextInputFormat.class);
     job.setMapperClass(TokenizerMapper.class);
@@ -57,11 +47,8 @@ public class SecureWordCountDriver extends Configured implements Tool {
     job.setMapOutputValueClass(IntWritable.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(IntWritable.class);
-    FileInputFormat.addInputPath(job, new Path(args[0]));
-    FileOutputFormat.setOutputPath(job, new Path(args[1]));
-    return job.waitForCompletion(true)?0:1;
-    
-  
+    FileInputFormat.addInputPath(job, new Path(input));
+    FileOutputFormat.setOutputPath(job, new Path(output));
+    return job;
   }
-  
 }

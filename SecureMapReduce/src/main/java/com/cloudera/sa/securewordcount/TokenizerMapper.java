@@ -1,52 +1,36 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.cloudera.sa.securewordcount;
 
 import java.io.IOException;
 import java.util.StringTokenizer;
-import org.apache.hadoop.conf.Configuration;
+import java.util.logging.Logger;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.mortbay.log.Log;
 
-/**
- *
- * @author vsingh
- */
-class TokenizerMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
-  private  Configuration conf;
-  private  StringTokenizer strTokenizer;
-  private  Text word = new Text();
-  private final IntWritable one = new IntWritable(1);
-  private static final String tokenDelim = "\\s";
-  Counter tokenizerMapperLines;
+final class TokenizerMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
+  private static final Logger LOGGER = Logger.getLogger(TokenizerMapper.class.getName());
+  private static final IntWritable ONE = new IntWritable(1);
+  private Counter processedLines;
+
   @Override
   protected void setup(Context context) {
-    conf = context.getConfiguration();
-    
-    tokenizerMapperLines = context.getCounter("TokenizerMapperLines", "TokenizerMapperProcessed");
-    
+    processedLines = context.getCounter("TokenizerMapperLines", "TokenizerMapperProcessed");
   }
 
   @Override
-  protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-    strTokenizer = new StringTokenizer(value.toString(),tokenDelim,true);
-    while(strTokenizer.hasMoreElements()) {
-      word.set(strTokenizer.nextToken());
-      context.write(word, one);
+  protected void map(LongWritable key, Text value, Context context)
+      throws IOException, InterruptedException {
+    StringTokenizer tokenizer = new StringTokenizer(value.toString());
+    while (tokenizer.hasMoreTokens()) {
+      context.write(new Text(tokenizer.nextToken()), ONE);
     }
-    tokenizerMapperLines.increment(1);
+    processedLines.increment(1);
   }
 
   @Override
   protected void cleanup(Context context) {
-    Log.info("Counter for lines: " + tokenizerMapperLines.getValue());
+    LOGGER.info(() -> "Counter for lines: " + processedLines.getValue());
   }
-
 }
