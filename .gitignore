@@ -2,3 +2,5 @@
 /HBaseBulkLoad/target/
 /SecureMapReduce/target/
 /SecureHiveServer2Query/QueryKerberosAuthHS2/target/
+*.iml
+.idea/
